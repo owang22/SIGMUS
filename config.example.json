@@ -7,5 +7,6 @@
   "postgres_config": {"dbname": "sigmus", "user": "sigmus", "password": "replace_me", "host": "localhost", "port": 5432},
   "marqo_config": {"uri": "http://localhost:8882"},
   "neo4j_config": {"uri": "bolt://localhost:7687", "username": "neo4j", "password": "replace_me"},
-  "openai": {"api": "replace_me", "model": "gpt-4o-mini", "qa_model": "gpt-4o-mini"}
+  "openai": {"api": "replace_me", "model": "gpt-4o-mini", "qa_model": "gpt-4o-mini",
+             "budget_usd": 1.0, "qa_budget_usd": 0.5}
 }

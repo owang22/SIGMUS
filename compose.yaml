@@ -61,6 +61,9 @@ services:
     depends_on:
       timescaledb: {condition: service_healthy}
       neo4j: {condition: service_healthy}
+      # Without Marqo at startup, ingestion runs the whole session without
+      # vector linking of incidents.
+      marqo: {condition: service_healthy}
     volumes:
       - ./.runtime/config.docker.json:/app/config.json:ro
       - type: bind

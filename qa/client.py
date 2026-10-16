@@ -7,6 +7,7 @@ import asyncio
 from datetime import datetime, timezone
 import json
 import os
+from pathlib import Path
 import sys
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -14,6 +15,7 @@ from zoneinfo import ZoneInfo
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 from openai import OpenAI
+from processing.enrichment.backends import UsageLedger
 
 from database_storage.config import get_config
 
@@ -88,10 +90,16 @@ def _tool_result(result: Any) -> str:
 async def answer(question: str, *, mcp_url: str, model: str | None = None,
                  max_rounds: int = 8, openai_client=None, verbose: bool = False) -> str:
     config = get_config()
+    ledger = None
     if openai_client is None:
         openai_config = config["openai"]
         client = OpenAI(api_key=openai_config["api"])
         model = model or openai_config.get("qa_model") or openai_config.get("model", "gpt-4o-mini")
+        if openai_config.get("qa_budget_usd") is not None:
+            ledger = UsageLedger(
+                openai_config.get("qa_usage_ledger",
+                                  Path(__file__).resolve().parents[1] / ".runtime" / "openai-usage-qa.jsonl"),
+                budget_usd=openai_config["qa_budget_usd"])
     else:
         client = openai_client
         model = model or "test-model"
@@ -115,9 +123,12 @@ async def answer(question: str, *, mcp_url: str, model: str | None = None,
                 {"role": "user", "content": question},
             ]
             for _ in range(max_rounds):
+                if ledger is not None: ledger.check(model)
                 response = client.chat.completions.create(
                     model=model, messages=messages, tools=tools, tool_choice="auto", temperature=0
                 )
+                if ledger is not None and response.usage is not None:
+                    ledger.record(model, "qa", response.usage)
                 message = response.choices[0].message
                 messages.append(message.model_dump(exclude_none=True))
                 if not message.tool_calls:
